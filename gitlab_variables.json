@@ -1,0 +1,50 @@
+{
+  "project_id": 40599884,
+  "variables": [
+    {
+      "key": "GITLAB_SECRET_TOKEN",
+      "value": "./go.mod",
+      "description": "",
+      "type": "env_var",
+      "env": "*",
+      "protect": true,
+      "mask": true
+    },
+    {
+      "key": "SLACK_SIGNING_SECRET",
+      "value": "op://Private/Bruyerre/username",
+      "description": "",
+      "type": "env_var",
+      "env": "*",
+      "protect": true,
+      "mask": true
+    },
+    {
+      "key": "SLACK_BOT_TOKEN",
+      "value": "",
+      "description": "",
+      "type": "env_var",
+      "env": "*",
+      "protect": true,
+      "mask": true
+    },
+    {
+      "key": "GITLAB_API_TOKEN",
+      "value": "",
+      "description": "",
+      "type": "env_var",
+      "env": "*",
+      "protect": true,
+      "mask": true
+    },
+    {
+      "key": "DEPLOYMENT_VALUES",
+      "value": "",
+      "description": "",
+      "type": "file",
+      "env": "main",
+      "protect": true,
+      "raw": true
+    }
+  ]
+}
