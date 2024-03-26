@@ -148,7 +148,9 @@ func get_gitlab_client() *gitlab.Client {
 func get_remote_variables(project_id int) ([]*gitlab.ProjectVariable, error) {
 	git := get_gitlab_client()
 
-	variables, _, err := git.ProjectVariables.ListVariables(project_id, nil)
+	variables, _, err := git.ProjectVariables.ListVariables(project_id, &gitlab.ListProjectVariablesOptions{
+		PerPage: 100,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -596,8 +598,6 @@ func push() {
 
 	// update overlapping variables
 	for i, localVar := range overlappingLocal {
-		fmt.Println(localVar)
-		fmt.Println(overlappingRemote[i])
 		if localVar == overlappingRemote[i] {
 			continue
 		}
@@ -627,6 +627,9 @@ func push() {
 			Raw:              &localVar.Raw,
 			Protected:        &localVar.Protect,
 			VariableType:     &variableType,
+			Filter: &gitlab.VariableFilter{
+				EnvironmentScope: localVar.Environment,
+			},
 		})
 		if err != nil {
 			fmt.Println("Could not update variable:", err)
@@ -637,7 +640,7 @@ func push() {
 	for _, remoteVar := range remoteOnly {
 		fmt.Println("Deleting variable:", remoteVar.Key, remoteVar.EnvironmentScope)
 		fmt.Println(remoteVar)
-		fmt.Println("Do you want to create this variable? (y/n): ")
+		fmt.Println("Do you want to DELETE this variable? (y/n): ")
 		fmt.Scanln(&input)
 		if input != "y" {
 			continue
