@@ -19,9 +19,217 @@ import (
 	"github.com/xanzy/go-gitlab"
 )
 
+type NestedProjectSecrets struct {
+	ProjectID int            `json:"project_id"`
+	Variables []NestedSecret `json:"variables"`
+}
+
 type ProjectSecrets struct {
 	ProjectID int      `json:"project_id"`
 	Variables []Secret `json:"variables"`
+}
+
+func (project *NestedProjectSecrets) Unnest() ProjectSecrets {
+	unnestedProject := ProjectSecrets{
+		ProjectID: project.ProjectID,
+		Variables: []Secret{},
+	}
+
+	for _, parent := range project.Variables {
+		if len(parent.Nested) == 0 {
+			unnestedProject.Variables = append(unnestedProject.Variables, Secret{
+				Key:          parent.Key,
+				Value:        *parent.Value,
+				Description:  *parent.Description,
+				VariableType: *parent.VariableType,
+				Environment:  *parent.Environment,
+				Protect:      *parent.Protect,
+				Mask:         *parent.Mask,
+				Raw:          *parent.Raw,
+			})
+		} else {
+			for _, nested := range parent.Nested {
+				value := parent.Value
+				description := parent.Description
+				vartype := parent.VariableType
+				env := parent.Environment
+				protect := parent.Protect
+				mask := parent.Mask
+				raw := parent.Raw
+				if parent.Value != nil {
+					value = nested.Value
+				}
+				if parent.Description != nil {
+					description = nested.Description
+				}
+				if parent.VariableType != nil {
+					vartype = nested.VariableType
+				}
+				if parent.Environment != nil {
+					env = nested.Environment
+				}
+				if parent.Protect != nil {
+					protect = nested.Protect
+				}
+				if parent.Mask != nil {
+					mask = nested.Mask
+				}
+				if parent.Raw != nil {
+					raw = nested.Raw
+				}
+
+				unnestedProject.Variables = append(unnestedProject.Variables, Secret{
+					Key:          parent.Key,
+					Value:        *value,
+					Description:  *description,
+					VariableType: *vartype,
+					Environment:  *env,
+					Protect:      *protect,
+					Mask:         *mask,
+					Raw:          *raw,
+				})
+			}
+		}
+	}
+	sort_variables(unnestedProject)
+	return unnestedProject
+}
+
+func (project *ProjectSecrets) Nest() NestedProjectSecrets {
+	// Group secrets by key
+	keymap := make(map[string][]NestedSecret)
+	for _, secret := range project.Variables {
+		nestedSecret := NestedSecret{
+			Key:          secret.Key,
+			Value:        &secret.Value,
+			Description:  &secret.Description,
+			VariableType: &secret.VariableType,
+			Environment:  &secret.Environment,
+			Protect:      &secret.Protect,
+			Mask:         &secret.Mask,
+			Raw:          &secret.Raw,
+			Nested:       []NestedSecret{},
+		}
+		keymap[secret.Key] = append(keymap[secret.Key], nestedSecret)
+	}
+
+	// for each group, nest secrets
+	topLevelGroup := []NestedSecret{}
+	for key, secrets := range keymap {
+		if len(secrets) == 1 {
+			// no need to nest
+			topLevelGroup = append(topLevelGroup, secrets[0])
+			continue
+		}
+		parentSecret := NestedSecret{
+			Key:          key,
+			Value:        secrets[0].Value,
+			Description:  secrets[0].Description,
+			VariableType: secrets[0].VariableType,
+			Environment:  secrets[0].Environment,
+			Protect:      secrets[0].Protect,
+			Mask:         secrets[0].Mask,
+			Raw:          secrets[0].Raw,
+			Nested:       []NestedSecret{},
+		}
+		// check for all fields if they are the same
+		value := true
+		description := true
+		vartype := true
+		env := true
+		protect := true
+		mask := true
+		raw := true
+		for _, secret := range secrets {
+			if *secret.Value != *secrets[0].Value {
+				parentSecret.Value = nil
+				value = false
+			}
+			if *secret.Description != *secrets[0].Description {
+				parentSecret.Description = nil
+				description = false
+			}
+			if *secret.VariableType != *secrets[0].VariableType {
+				parentSecret.VariableType = nil
+				vartype = false
+			}
+			if *secret.Environment != *secrets[0].Environment {
+				parentSecret.Environment = nil
+				env = false
+			}
+			if *secret.Protect != *secrets[0].Protect {
+				parentSecret.Protect = nil
+				protect = false
+			}
+			if *secret.Mask != *secrets[0].Mask {
+				parentSecret.Mask = nil
+				mask = false
+			}
+			if *secret.Raw != *secrets[0].Raw {
+				parentSecret.Raw = nil
+				raw = false
+			}
+		}
+		// Remove fields if they are the same
+		for _, secret := range secrets {
+			secret.Key = ""
+			if value {
+				secret.Value = nil
+			}
+			if description {
+				secret.Description = nil
+			}
+			if vartype {
+				secret.VariableType = nil
+			}
+			if env {
+				secret.Environment = nil
+			}
+			if protect {
+				secret.Protect = nil
+			}
+			if mask {
+				secret.Mask = nil
+			}
+			if raw {
+				secret.Raw = nil
+			}
+			parentSecret.Nested = append(parentSecret.Nested, secret)
+		}
+
+		topLevelGroup = append(topLevelGroup, parentSecret)
+	}
+	nestedProject := NestedProjectSecrets{
+		ProjectID: project.ProjectID,
+		Variables: topLevelGroup,
+	}
+	return nestedProject
+}
+
+type NestedSecret struct {
+	Key          string         `json:"key,omitempty"`
+	Value        *string        `json:"value,omitempty"`
+	Description  *string        `json:"description,omitempty"`
+	VariableType *string        `json:"type,omitempty"`
+	Environment  *string        `json:"env,omitempty"`
+	Protect      *bool          `json:"protect,omitempty"`
+	Mask         *bool          `json:"mask,omitempty"`
+	Raw          *bool          `json:"raw,omitempty"`
+	Nested       []NestedSecret `json:"nested,omitempty"`
+}
+
+func (nestedProject *NestedProjectSecrets) save_local() error {
+	content, err := json.MarshalIndent(nestedProject, "", "  ")
+	if err != nil {
+		fmt.Println("Error encoding JSON:", err)
+		return err
+	}
+	err = os.WriteFile("gitlab_nested_variables.json", content, 0644)
+	if err != nil {
+		fmt.Println("Could not write variables file:", err)
+		return err
+	}
+	return nil
 }
 
 type Secret struct {
@@ -76,6 +284,15 @@ func main() {
 		push()
 	case "diff":
 		diff()
+	case "nest":
+		local, err := get_local_variables()
+		if err != nil {
+			fmt.Println("Could not load local variables file:", err)
+			return
+		}
+		nested := local.Nest()
+		nested.save_local()
+
 	default:
 		fmt.Println(`Usage: gitlab-secrets [init|import|pull|push|diff|help] [OPTIONS]
 Init: Pull using a project ID.
@@ -393,14 +610,19 @@ func pull() {
 		fmt.Println("Could not load local variables file:", err)
 		return
 	}
+	sort_variables(local)
 
 	injected := inject_secrets(inject_files(local))
 
-	remote, err := get_remote_variables(local.ProjectID)
+	remote_vars, err := get_remote_variables(local.ProjectID)
 	if err != nil {
 		fmt.Println("Could not load remote variables:", err)
 		return
 	}
+	r2l := remote_to_local(local.ProjectID, remote_vars)
+	sort_variables(r2l)
+	remote := r2l.Variables
+
 	// map local keys to local values
 	localMap := make(map[KeyTuple]string)
 	for _, secret := range local.Variables {
@@ -422,11 +644,11 @@ func pull() {
 		value := ""
 		if injectedMap[KeyTuple{
 			Key:         remote[i].Key,
-			Environment: remote[i].EnvironmentScope,
+			Environment: remote[i].Environment,
 		}] == remote[i].Value {
 			value = localMap[KeyTuple{
 				Key:         remote[i].Key,
-				Environment: remote[i].EnvironmentScope,
+				Environment: remote[i].Environment,
 			}]
 		}
 		local.Variables = append(local.Variables, Secret{
@@ -435,9 +657,9 @@ func pull() {
 			Value:        value,
 			Description:  remote[i].Description,
 			VariableType: string(remote[i].VariableType),
-			Environment:  remote[i].EnvironmentScope,
-			Protect:      remote[i].Protected,
-			Mask:         remote[i].Masked,
+			Environment:  remote[i].Environment,
+			Protect:      remote[i].Protect,
+			Mask:         remote[i].Mask,
 			Raw:          remote[i].Raw,
 		})
 	}
