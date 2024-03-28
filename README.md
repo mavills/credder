@@ -1,20 +1,17 @@
 # Credder
 
-a.k.a "credentialler"
-
-use:
+Work with remote variables in version control for CI/CD & visibility.
 
 ```
 ~ » credder                                                                                                                                                                                        stijn@wswolf11
-Usage: gitlab-secrets [init|import|pull|push|diff|help] [OPTIONS]
-Init: Pull using a project ID.
-Pull: update the local file with the secrets from GitLab. Values will be unset.
-Push: update the GitLab secrets with the local file. Will inject passwords.
-Diff: show the difference between local and remote secrets.
-Help: This message.
+Usage: gitlab-secrets [init|import|pull|apply|plan|help]
+	init: Set up a new variable file.
+	import: Overwrite local variables with remote.
+	pull: Update local variables with remote.
+	apply: Update remote variables with local.
+	plan: Show staged local changes (what will change on GitLab).
+	help: Show this message.
 ```
-
-Helps you set up and manage gitlab credentials.
 
 > Always be careful with credentials; do not push them.
 
