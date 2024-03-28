@@ -130,7 +130,7 @@ type NestedSecret struct {
 	Nested       []NestedSecret `json:"nested,omitempty"`
 }
 
-func (secret NestedSecret) Equal(other NestedSecret) bool {
+func (secret *NestedSecret) Equal(other NestedSecret) bool {
 	if secret.Key != other.Key {
 		fmt.Printf("Key: %s != %s\n", secret.Key, other.Key)
 		return false
@@ -196,7 +196,7 @@ func (secret *Secret) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, (*tempSecret)(secret))
 }
 
-func (secret Secret) Equal(other Secret) bool {
+func (secret *Secret) Equal(other Secret) bool {
 	if secret.Key != other.Key {
 		return false
 	}

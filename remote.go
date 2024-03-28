@@ -80,7 +80,7 @@ func remoteToLocal(project_id int, remote []*gitlab.ProjectVariable) ProjectSecr
 // FetchVariables fetches the project variables for a given project ID from GitLab.
 // It returns a struct of type ProjectSecrets that contains the fetched variables,
 // or an error if the fetching process fails.
-func (project ProjectSecrets) FetchVariables(project_id int) error {
+func (project *ProjectSecrets) FetchVariables(project_id int) error {
 	git := getGitlabClient()
 
 	var variables []*gitlab.ProjectVariable
@@ -106,7 +106,6 @@ func (project ProjectSecrets) FetchVariables(project_id int) error {
 
 		page = resp.NextPage
 	}
-
 	filled := remoteToLocal(project_id, variables)
 	project.ProjectID = project_id
 	project.Variables = filled.Variables

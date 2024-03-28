@@ -18,24 +18,26 @@ import (
 var DEFAULT_FILE_NAME = "gitlab_variables.json"
 
 const (
-	Init   = "init"
-	Import = "import"
-	Pull   = "pull"
-	Diff   = "plan"
-	Push   = "apply"
-	Help   = "help"
+	Init     = "init"
+	Import   = "import"
+	Pull     = "pull"
+	Diff     = "plan"
+	Push     = "apply"
+	Reformat = "reformat"
+	Help     = "help"
 )
 
 func GetHelpString() string {
-	commands := strings.Join([]string{Init, Import, Pull, Push, Diff, Help}, "|")
+	commands := strings.Join([]string{Init, Import, Pull, Push, Diff, Reformat, Help}, "|")
 	usage := fmt.Sprintf("Usage: gitlab-secrets [%s]", commands)
 	init := fmt.Sprintf("\t%s: Set up a new variable file.", Init)
 	imp := fmt.Sprintf("\t%s: Overwrite local variables with remote.", Import)
 	pull := fmt.Sprintf("\t%s: Update local variables with remote.", Pull)
 	push := fmt.Sprintf("\t%s: Update remote variables with local.", Push)
 	diff := fmt.Sprintf("\t%s: Show staged local changes (what will change on GitLab).", Diff)
+	reformat := fmt.Sprintf("\t%s: Reformat the local variables file.", Reformat)
 	help := fmt.Sprintf("\t%s: Show this message.", Help)
-	return strings.Join([]string{usage, init, imp, pull, push, diff, help}, "\n")
+	return strings.Join([]string{usage, init, imp, pull, push, diff, reformat, help}, "\n")
 }
 
 func main() {
@@ -61,6 +63,10 @@ func main() {
 		push()
 	case Diff:
 		diff()
+	case Reformat:
+		local := ProjectSecrets{}
+		local.Read(DEFAULT_FILE_NAME)
+		local.Write(DEFAULT_FILE_NAME)
 	default:
 		fmt.Println(GetHelpString())
 	}
@@ -289,7 +295,7 @@ func push() {
 		fmt.Println("Could not load local variables file:", err)
 		return
 	}
-	local.InjectFiles().InjectSecrets()
+	local = local.InjectFiles().InjectSecrets()
 
 	// Get the remote variables
 	err = remote.FetchVariables(local.ProjectID)
