@@ -41,6 +41,18 @@ func (nestedProject *NestedProjectSecrets) Read(filename string) error {
 	return nil
 }
 
+func (project *NestedProjectSecrets) Order() {
+	sort.Slice(project.Variables, func(i, j int) bool {
+		if project.Variables[i].Key != project.Variables[j].Key {
+			return project.Variables[i].Key < project.Variables[j].Key
+		}
+		if project.Variables[i].Environment == nil {
+			return true
+		}
+		return *project.Variables[i].Environment < *project.Variables[j].Environment
+	})
+}
+
 func (nestedProject NestedProjectSecrets) Equal(other NestedProjectSecrets) bool {
 	if nestedProject.ProjectID != other.ProjectID {
 		return false
@@ -84,8 +96,8 @@ func (project *ProjectSecrets) Read(filename string) error {
 }
 
 func (project *ProjectSecrets) Write(filename string) error {
-	project.Order()
 	nested := project.Nest()
+	nested.Order()
 	err := nested.Write(filename)
 	if err != nil {
 		return err

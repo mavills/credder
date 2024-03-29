@@ -259,7 +259,7 @@ func import_gl() {
 		return
 	}
 
-	for _, secret := range remote.Variables {
+	for i, secret := range remote.Variables {
 		if secret.VariableType != "file" {
 			continue
 		}
@@ -274,10 +274,10 @@ func import_gl() {
 		// store the variable with secrets
 		path := "./variables/" + secret.Key + "_" + base64.StdEncoding.EncodeToString([]byte(secret.Environment))
 		err := os.WriteFile(path, []byte(secret.Value), 0644)
+		remote.Variables[i].Value = path
 		if err != nil {
 			fmt.Println("Could not write file:", err)
 		}
-		secret.Value = path
 	}
 	err = remote.Write(DEFAULT_FILE_NAME)
 	if err != nil {
