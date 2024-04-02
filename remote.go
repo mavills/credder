@@ -122,6 +122,7 @@ func CreateVariable(projectId int, variable Secret) error {
 
 	variableType := gitlab.VariableTypeValue(variable.VariableType)
 	_, _, err := git.ProjectVariables.CreateVariable(projectId, &gitlab.CreateProjectVariableOptions{
+		Key:              &variable.Key,
 		Value:            &variable.Value,
 		Description:      &variable.Description,
 		EnvironmentScope: &variable.Environment,
