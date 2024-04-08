@@ -2,6 +2,26 @@
 
 Work with remote variables in version control for CI/CD & visibility.
 
+Code platforms:
+
+- GitLab
+
+Secret managers:
+
+- 1Password
+
+### Getting started
+
+Either copy binaries or `go install .`
+
+Make sure a gitlab access token is exported under `GL_PAT`.
+
+```
+export GL_PAT=<your_token_here>
+```
+
+### Usage
+
 ```
 ~ » credder                                                                                                                                                                                        stijn@wswolf11
 Usage: gitlab-secrets [init|import|pull|apply|plan|help]
@@ -16,3 +36,11 @@ Usage: gitlab-secrets [init|import|pull|apply|plan|help]
 > Always be careful with credentials; do not push them.
 
 All operations are safe, meaning they will ask for your input when changing things remotely (currently only `push`)
+
+### Contributing
+
+[Contributing](CONTRIBUTING)
+
+### License
+
+[MIT License](LICENSE)
