@@ -39,8 +39,8 @@ All operations are safe, meaning they will ask for your input when changing thin
 
 ### Contributing
 
-[Contributing](CONTRIBUTING)
+[Contributing](CONTRIBUTING.md)
 
 ### License
 
-[MIT License](LICENSE)
+[MIT License](LICENSE.md)
