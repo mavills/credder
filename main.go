@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-
 	"os"
 
 	"github.com/urfave/cli/v3"
@@ -94,6 +93,15 @@ func main() {
 					local.Read(DEFAULT_FILE_NAME)
 					local.Write(DEFAULT_FILE_NAME)
 					return nil
+				},
+			},
+			{
+				Name:    "lint",
+				Aliases: []string{},
+				Usage:   "Lint the .gitlab-ci.yml file.",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					err := Lint()
+					return err
 				},
 			},
 		},

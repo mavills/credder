@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -12,6 +13,41 @@ import (
 	"github.com/xanzy/go-gitlab"
 )
 
+func GetProjectIdFromPath(path string) (int, error) {
+	path = strings.ReplaceAll(path, "/", "%2F")
+	token := os.Getenv("GL_PAT")
+	url := fmt.Sprintf("https://gitlab.com/api/v4/projects/%s", path)
+
+	cacheKey := fmt.Sprintf("projectid_%s", url)
+	if val, ok := GetLintCacheI(cacheKey); ok {
+		return val, nil
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return 0, fmt.Errorf("could not create HTTP request: %w", err)
+	}
+	req.Header.Set("PRIVATE-TOKEN", token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("could not make request to GitLab API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var data map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&data)
+	if err != nil {
+		return 0, fmt.Errorf("could not decode JSON response: %w", err)
+	}
+
+	project_id := data["id"].(float64)
+
+	id := int(project_id)
+	SetLintCacheI(cacheKey, id)
+	return id, nil
+}
+
 func GetProjectID() int {
 	cmd := exec.Command("git", "remote", "get-url", "origin")
 	output, err := cmd.CombinedOutput()
@@ -21,31 +57,11 @@ func GetProjectID() int {
 	a := string(output)
 	a = strings.Split(a, ":")[1]
 	a = strings.Split(a, ".git")[0]
-	a = strings.Replace(a, "/", "%2F", -1)
 
-	token := os.Getenv("GL_PAT")
-	url := fmt.Sprintf("https://gitlab.com/api/v4/projects/%s", a)
-	req, err := http.NewRequest("GET", url, nil)
+	id, err := GetProjectIdFromPath(a)
 	if err != nil {
-		log.Fatal("Could not create HTTP request:", err)
+		log.Fatalln("Could not get project id:", err)
 	}
-	req.Header.Set("PRIVATE-TOKEN", token)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		log.Fatal("Could not make request to GitLab API:", err)
-	}
-	defer resp.Body.Close()
-
-	var data map[string]interface{}
-	err = json.NewDecoder(resp.Body).Decode(&data)
-	if err != nil {
-		log.Fatal("Could not decode JSON response:", err)
-	}
-
-	project_id := data["id"].(float64)
-
-	id := int(project_id)
 	return id
 }
 
@@ -167,4 +183,70 @@ func DeleteVariable(projectId int, key string, environment string) error {
 		},
 	})
 	return err
+}
+
+func GetFileFromProjectIdAndPath(projectId int, path string) (string, error) {
+	git := getGitlabClient()
+	path = strings.TrimLeft(path, "/")
+	cacheKey := fmt.Sprintf("file_%d_%s", projectId, path)
+	var content string
+	if val, ok := GetLintCache(cacheKey); !ok {
+		file, _, err := git.RepositoryFiles.GetFile(projectId, path, &gitlab.GetFileOptions{
+			Ref: gitlab.Ptr("master"),
+		})
+		if err != nil {
+			return "", err
+		}
+		data, err := base64.StdEncoding.DecodeString(file.Content)
+		if err != nil {
+			return "", err
+		}
+		content = string(data)
+		SetLintCacheS(cacheKey, content)
+	} else {
+		content = val
+	}
+	return content, nil
+}
+
+func GetCiConfigPath(projectId int) (string, error) {
+	git := getGitlabClient()
+	cacheKey := fmt.Sprintf("project_%d", projectId)
+
+	project := &gitlab.Project{}
+	if val, ok := GetLintCacheB(cacheKey); !ok {
+		proj, _, err := git.Projects.GetProject(projectId, &gitlab.GetProjectOptions{})
+		if err != nil {
+			return "", err
+		}
+		project = proj
+		SetLintCache(cacheKey, project)
+	} else {
+		json.Unmarshal(val, project)
+	}
+	if project.CIConfigPath == "" {
+		return ".gitlab-ci.yml", nil
+	}
+	return project.CIConfigPath, nil
+}
+
+func LintCiFromString(content string) (gitlab.ProjectLintResult, error) {
+	git := getGitlabClient()
+	pid := GetProjectID()
+	cacheKey := fmt.Sprintf("lint_%d_%s", pid, content)
+	lintResult := &gitlab.ProjectLintResult{}
+	if val, ok := GetLintCache(cacheKey); !ok {
+		result, _, err := git.Validate.ProjectNamespaceLint(pid, &gitlab.ProjectNamespaceLintOptions{Content: gitlab.Ptr(content)})
+		if err != nil {
+			return gitlab.ProjectLintResult{}, err
+		}
+		lintResult = result
+		SetLintCache(cacheKey, lintResult)
+	} else {
+		err := json.Unmarshal([]byte(val), lintResult)
+		if err != nil {
+			return gitlab.ProjectLintResult{}, err
+		}
+	}
+	return *lintResult, nil
 }

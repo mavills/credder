@@ -4,7 +4,10 @@ go 1.22.1
 
 require github.com/xanzy/go-gitlab v0.100.0
 
-require github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
+require (
+	github.com/go-yaml/yaml v2.1.0+incompatible // indirect
+	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
+)
 
 require (
 	github.com/creack/pty v1.1.21
