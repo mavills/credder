@@ -7,4 +7,4 @@ build:
   GOOS=darwin GOARCH=amd64 go build -o credder-mac .
 
 build-local:
-  go build . && mv credder ~/.local/bin/credder
+  go build . && cp credder ~/.local/bin/credder
